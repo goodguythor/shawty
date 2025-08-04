@@ -54,7 +54,7 @@ func getLongLink(c *gin.Context) {
 
 func importHash(s string) string {
 	// Hash with crc32
-	return fmt.Sprintf("%08x", crc32.ChecksumIEEE([]byte(s)))
+	return fmt.Sprintf("%07x", crc32.ChecksumIEEE([]byte(s)))
 }
 
 func postLongLink(c *gin.Context) {
