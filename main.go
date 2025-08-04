@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"math/rand"
 
 	"fmt"
 
@@ -21,6 +22,8 @@ var (
 	dbname = os.Getenv("DB_NAME")
 )
 
+var psqlInfo = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
+
 func getLongLink(c *gin.Context) {
 	shortURL := c.Param("short_url")
 
@@ -28,8 +31,6 @@ func getLongLink(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "short_url is required"})
 		return
 	}
-
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
 
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
@@ -63,7 +64,6 @@ func postLongLink(c *gin.Context) {
 		return
 	}
 
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "database connection failed"})
@@ -85,6 +85,21 @@ func postLongLink(c *gin.Context) {
 
 	// take only the first 7 characters of the hash
 	shortURL := importHash(longURL)[:7]
+	counter := 1
+	// ensure no collision with existing short URLs
+	var dummy bool
+	for {
+		err = db.QueryRow("SELECT 1 FROM url WHERE short_url = $1", shortURL).Scan(&dummy)
+		if err == sql.ErrNoRows {
+			break // No collision
+		} else if err != nil {
+			c.JSON(500, gin.H{"error": "database query failed"})
+			return
+		}
+		shortURL = importHash(longURL + fmt.Sprintf("%d", counter))[:7]
+		counter = 1 + rand.Intn(5)
+	}
+	
 	_, err = db.Exec("INSERT INTO url (short_url, long_url) VALUES ($1, $2)", shortURL, longURL)
 	if err != nil {
 		c.JSON(500, gin.H{"error": fmt.Sprintf("database insert failed: %v", err)})
