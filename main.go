@@ -49,7 +49,7 @@ func getLongLink(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{"long_url": longURL})
+	c.Redirect(302, longURL)
 }
 
 func importHash(s string) string {
